@@ -1,2 +1,42 @@
 # Write docker-compose file here
 # For instructions, see https://github.com/SnowSuno/wheel-assignment-solution#2-docker-composeyml-%EC%9E%91%EC%84%B1
+
+version: "1.0"
+services:
+  taxi-front:
+    container_name: "taxi-front"
+    image: "${FRONT_IMAGE}"
+    restart: always
+    ports:
+      - "${FRONT_PORT}:3000"
+    env_file:
+      - "./client/.env"
+  taxi-back:
+    container_name: "taxi-back"
+    image: "${BACK_IMAGE}"
+    restart: always
+    ports:
+      - "${BACK_PORT}:8000"
+    env_file:
+      - "./server/.env.production"
+  taxi-db:
+    container_name: "taxi-db"
+    image: mongo:4.4
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=taxi
+    volumes:
+      - db-volume:/data/db
+  taxi-proxy:
+    container_name: "taxi-proxy"
+    build:
+      context: "./proxy"
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+
+volumes:
+  db-volume:
