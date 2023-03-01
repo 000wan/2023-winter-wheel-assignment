@@ -37,11 +37,11 @@ jobs:
         with:
           context: ./client
           push: true
-          tags: "${{ FRONT_IMAGE }}:latest"
+          tags: "${{ env.FRONT_IMAGE }}:latest"
 
       - name: Build and push (Back)
         uses: docker/build-push-action@v4
         with:
           context: ./server
           push: true
-          tags: "${{ BACK_IMAGE }}:latest"
+          tags: "${{ env.BACK_IMAGE }}:latest"
