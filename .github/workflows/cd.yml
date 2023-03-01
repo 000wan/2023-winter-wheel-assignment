@@ -16,6 +16,7 @@ env:
 
 jobs:
   build-and-push-image:
+    name: Build & Push
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -37,23 +38,25 @@ jobs:
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
           images: ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE }}
-          flavor: latest=true
+          tags: latest
       - name: Build and push (Front)
         uses: docker/build-push-action@v4
         with:
           context: ./client
           push: true
           tags: ${{ steps.meta_front.outputs.tags }}
+          labels: ${{ steps.meta_front.outputs.labels }}
 
       - name: Extract metadata (Back)
         id: meta_back
         uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACK_IMAGE }}
-          flavor: latest=true
+          tags: latest
       - name: Build and push (Back)
         uses: docker/build-push-action@v4
         with:
           context: ./server
           push: true
           tags: ${{ steps.meta_back.outputs.tags }}
+          labels: ${{ steps.meta_back.outputs.labels }}
