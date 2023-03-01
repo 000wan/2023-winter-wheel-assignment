@@ -32,16 +32,28 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata (Front)
+        id: meta_front
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONT_IMAGE }}
+          flavor: latest=true
       - name: Build and push (Front)
         uses: docker/build-push-action@v4
         with:
           context: ./client
           push: true
-          tags: "${{ env.FRONT_IMAGE }}:latest"
+          tags: ${{ steps.meta_front.outputs.tags }}
 
+      - name: Extract metadata (Back)
+        id: meta_back
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACK_IMAGE }}
+          flavor: latest=true
       - name: Build and push (Back)
         uses: docker/build-push-action@v4
         with:
           context: ./server
           push: true
-          tags: "${{ env.BACK_IMAGE }}:latest"
+          tags: ${{ steps.meta_back.outputs.tags }}
