@@ -1,2 +1,47 @@
 # Write github action workflow here
 # For instructions, see https://github.com/SnowSuno/wheel-assignment-solution#3-cicd-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8-%EA%B5%AC%EC%84%B1
+
+name: CD
+
+on:
+  release:
+    types: ["created"]
+  push:
+    branches: ["feature/cicd"]
+
+env:
+  REGISTRY: ghcr.io
+  FRONT_IMAGE: taxi-front-prod
+  BACK_IMAGE: taxi-back-prod
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (Front)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./client
+          push: true
+          tags: "${{ FRONT_IMAGE }}:latest"
+
+      - name: Build and push (Back)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./server
+          push: true
+          tags: "${{ BACK_IMAGE }}:latest"
