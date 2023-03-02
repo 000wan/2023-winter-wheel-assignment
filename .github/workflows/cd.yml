@@ -1,2 +1,99 @@
 # Write github action workflow here
 # For instructions, see https://github.com/SnowSuno/wheel-assignment-solution#3-cicd-%ED%8C%8C%EC%9D%B4%ED%94%84%EB%9D%BC%EC%9D%B8-%EA%B5%AC%EC%84%B1
+
+name: CD
+
+on:
+  release:
+    types: ["created"]
+  push:
+    branches: ["feature/cicd"]
+
+env:
+  REGISTRY: ghcr.io
+  FRONT_IMAGE: taxi-front-prod
+  BACK_IMAGE: taxi-back-prod
+
+jobs:
+  build-and-push-image:
+    name: Build & Push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (Front)
+        id: meta_front
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.FRONT_IMAGE }}
+          tags: latest
+      - name: Build and push (Front)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./client
+          push: true
+          tags: ${{ steps.meta_front.outputs.tags }}
+          labels: ${{ steps.meta_front.outputs.labels }}
+
+      - name: Extract metadata (Back)
+        id: meta_back
+        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.BACK_IMAGE }}
+          tags: latest
+      - name: Build and push (Back)
+        uses: docker/build-push-action@v4
+        with:
+          context: ./server
+          push: true
+          tags: ${{ steps.meta_back.outputs.tags }}
+          labels: ${{ steps.meta_back.outputs.labels }}
+  deploy:
+    name: Deploy
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get Github Actions IP
+        id: ip
+        uses: haythem/public-ip@v1.2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2
+
+      - name: Add Github Actions IP to Security group
+        run: |
+          aws ec2 authorize-security-group-ingress --group-id ${{ secrets.AWS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+
+      - name: SSH Commands
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.AWS_SSH_HOST }}
+          username: ${{ secrets.AWS_SSH_USERNAME }}
+          key: ${{ secrets.AWS_SSH_KEY }}
+          port: ${{ secrets.AWS_SSH_PORT }}
+          script_stop: true
+          script: |
+            cd /home/${{ secrets.AWS_SSH_USERNAME }}/app
+            docker compose up -d
+
+      - name: Remove Github Actions IP From Security Group
+        run: |
+          aws ec2 revoke-security-group-ingress --group-id ${{ secrets.AWS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+        if: always()
